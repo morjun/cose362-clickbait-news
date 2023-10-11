@@ -15,9 +15,14 @@ import time
 import datetime
 
 def main():
+    #makeCsv()
+    #tokenize("data.csv")
+    train("tokenized.csv")
+
+def tokenize(csvFile: str):
     pd.set_option('display.max_columns', None)
 
-    fullFrame = pd.read_csv("data.csv")
+    fullFrame = pd.read_csv(csvFile)
 
     print(fullFrame.shape)
     print(fullFrame.head())
@@ -40,6 +45,23 @@ def main():
 
     tokenFrame = pd.DataFrame({'title': tokenized_titles, 'content': tokenized_contents,'label': truncFrame['label']})
     tokenFrame.to_csv("tokenized.csv", index=False)
+
+def makeCsv():
+    dfs = [] # list of dataframes
+    topDir = "data"
+    for root, dirs, files in os.walk(topDir):
+        for file in files:
+            if file.endswith(".json"):
+                with open(os.path.join(root, file), encoding="utf-8") as f:
+                    data = pandas.json_normalize(json.loads(f.read()))
+                    print(f"Processing {root}\\{file}: {data['sourceDataInfo.newsTitle'][0]}")
+                    dfs.append(data)
+                    
+    df = pandas.concat(dfs, ignore_index=True)
+    
+    print(df)
+    df.to_csv("data.csv", index=False)
+    
 
 
 if __name__ == "__main__":
