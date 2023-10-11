@@ -38,7 +38,8 @@ def main():
     tokenized_contents = [tokenizer.tokenize(sent) for sent in content_bert]
     tokenized_titles = [tokenizer.tokenize(sent) for sent in title_bert]
 
-    print(tokenized_contents[0])
+    tokenFrame = pd.DataFrame({'title': tokenized_titles, 'content': tokenized_contents,'label': truncFrame['label']})
+    tokenFrame.to_csv("tokenized.csv", index=False)
 
 
 if __name__ == "__main__":
