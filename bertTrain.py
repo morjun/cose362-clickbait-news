@@ -17,12 +17,17 @@ import os
 import json
 import datetime
 
+OPTION = "allInOne"
 
 def main():
     # makeCsv()
     tokenize("data.csv")
     # train("tokenized.csv")
 
+def concatContentsAndTitle(df: pd.DataFrame):
+    if OPTION == "allInOne":
+        df["content"] = df["content"].str.cat(df["title"], sep=" ")
+    return df
 
 def tokenize(csvFile: str):
     pd.set_option("display.max_columns", None)
@@ -48,6 +53,9 @@ def tokenize(csvFile: str):
             "labeledDataInfo.clickbaitClass": "label",
         }
     )
+    
+    truncFrame = concatContentsAndTitle(truncFrame)
+
     tokenizer = BertTokenizer.from_pretrained(
         "bert-base-multilingual-cased", do_lower_case=False
     )
@@ -58,12 +66,14 @@ def tokenize(csvFile: str):
         .replace(r"\\[^a-z]", "", regex=True)
         .replace("[.,!?-]", "")
     )
-    truncFrame["title"] = (
-        truncFrame["title"]
-        .str.replace(r"\\n", " ", regex=True)
-        .replace(r"\\[^a-z]", "", regex=True)
-        .replace("[.,!?-]", "")
-    )
+
+    if OPTION != "allInOne":
+        truncFrame["title"] = (
+            truncFrame["title"]
+            .str.replace(r"\\n", " ", regex=True)
+            .replace(r"\\[^a-z]", "", regex=True)
+            .replace("[.,!?-]", "")
+        )
 
     # truncFrame['content'] = ["[CLS] " + str(sent) + " [END]" for sent in truncFrame['content']]
     # truncFrame['title'] = ["[CLS] " + str(sent) + " [END]" for sent in truncFrame['title']]
@@ -74,28 +84,43 @@ def tokenize(csvFile: str):
 
     for content in truncFrame["content"]:
         contentBatchList.append(preprocessSentence(content, tokenizer))
-    for title in truncFrame["title"]:
-        titleBatchList.append(preprocessSentence(title, tokenizer))
+
+    if OPTION != "allInOne":
+        for title in truncFrame["title"]:
+            titleBatchList.append(preprocessSentence(title, tokenizer))
 
     tokenizedContents = [tokenizer.tokenize(sent) for sent in truncFrame["content"]]
-    tokenizedTitles = [tokenizer.tokenize(sent) for sent in truncFrame["title"]]
+
+    if OPTION != "allInOne":
+        tokenizedTitles = [tokenizer.tokenize(sent) for sent in truncFrame["title"]]
 
     # tokenizedContentsIds = [
     #     tokenizer.convert_tokens_to_ids(x) for x in tokenized_contents
     # ]
     # tokenizedTitlesIds = [tokenizer.convert_tokens_to_ids(x) for x in tokenized_titles]
 
-    tokenFrame = pd.DataFrame(
-        {
-            "titleToken": tokenizedTitles,
-            "titleTokenId": [x['input_ids'] for x in titleBatchList],
-            "titleAttentionMask": [x['attention_mask'] for x in titleBatchList],
-            "contentToken": tokenizedContents,
-            "contentTokenId": [x['input_ids'] for x in contentBatchList],
-            "contentAttentionMask": [x['attention_mask'] for x in contentBatchList],
-            "label": truncFrame["label"],
-        }
-    )
+    if OPTION != "allInOne":
+        tokenFrame = pd.DataFrame(
+            {
+                "titleToken": tokenizedTitles,
+                "titleTokenId": [x['input_ids'] for x in titleBatchList],
+                "titleAttentionMask": [x['attention_mask'] for x in titleBatchList],
+                "contentToken": tokenizedContents,
+                "contentTokenId": [x['input_ids'] for x in contentBatchList],
+                "contentAttentionMask": [x['attention_mask'] for x in contentBatchList],
+                "label": truncFrame["label"],
+            }
+        )
+    else:
+        tokenFrame = pd.DataFrame(
+            {
+                "contentToken": tokenizedContents,
+                "contentTokenId": [x['input_ids'] for x in contentBatchList],
+                "contentAttentionMask": [x['attention_mask'] for x in contentBatchList],
+                "label": truncFrame["label"],
+            }
+        )
+
     tokenFrame.to_csv("tokenized.csv", index=False)
 
 
