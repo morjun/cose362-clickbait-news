@@ -135,7 +135,7 @@ def preprocessSentence(input_text: str, tokenizer: BertTokenizer):
     return tokenizer.encode_plus(
         input_text,
         add_special_tokens=True,
-        max_length=64,
+        # max_length=64,
         pad_to_max_length=True,
         return_attention_mask=True,
         return_tensors="pt",
