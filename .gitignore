@@ -4,3 +4,4 @@
 /data.csv
 datahead.xlsx
 tokenized.csv
+*.pt

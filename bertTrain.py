@@ -1,11 +1,14 @@
 import torch
 
 from transformers import BertTokenizer
-from transformers import BertForSequenceClassification, AdamW, BertConfig
+from transformers import BertForSequenceClassification, BertConfig
+from torch.optim import AdamW
 from transformers import get_linear_schedule_with_warmup
 from torch.utils.data import TensorDataset, DataLoader, RandomSampler, SequentialSampler
 from keras.utils import pad_sequences
 from sklearn.model_selection import train_test_split
+
+from tqdm import trange 
 
 # pip install scikit-learn
 
@@ -21,7 +24,12 @@ OPTION = "allInOne"
 
 def main():
     # makeCsv()
-    tokenId, attentionMask, labels = tokenize("data.csv")
+    # tokenId, attentionMask, labels = tokenize("data.csv")
+
+    tokenId = torch.load("tokenId.pt")
+    attentionMask = torch.load("attentionMask.pt")
+    labels = torch.load("label.pt")
+
     trainDataLoader, valDataLoader = splitData(tokenId=tokenId, attentionMask=attentionMask, label=labels)
     train(trainDataLoader, valDataLoader)
 
@@ -60,7 +68,7 @@ def tokenize(csvFile: str):
         truncFrame = concatContentsAndTitle(truncFrame)
 
     tokenizer = BertTokenizer.from_pretrained(
-        "bert-base-multilingual-cased", do_lower_case=False
+        "bert-base-multilingual-cased", do_lower_case=False,
     )
 
     truncFrame["content"] = (
@@ -80,6 +88,7 @@ def tokenize(csvFile: str):
 
     contentBatchList = []
     titleBatchList = []
+
     tokenId = []
     attentionMasks = []
 
@@ -94,13 +103,13 @@ def tokenize(csvFile: str):
             titleBatchList.append(preprocessSentence(title, tokenizer))
 
     tokenizedContents = [tokenizer.tokenize(sent) for sent in truncFrame["content"]]
-    tokenizedTitles = []
 
+    tokenizedTitles = []
     if OPTION != "allInOne":
         tokenizedTitles = [tokenizer.tokenize(sent) for sent in truncFrame["title"]]
 
-    tokenId = torch.cat(tokenId, dim=0)
-    attentionMasks = torch.cat(attentionMasks, dim=0)
+    tokenId = torch.cat(tokenId, dim = 0)
+    attentionMasks = torch.cat(attentionMasks, dim = 0)
     label = torch.tensor(truncFrame["label"].values)
 
     torch.save(tokenId, "tokenId.pt")
@@ -120,8 +129,9 @@ def preprocessSentence(input_text: str, tokenizer: BertTokenizer):
     return tokenizer.encode_plus(
         input_text,
         add_special_tokens=True,
-        # max_length=64,
-        pad_to_max_length=True,
+        max_length=512, # BERT가 지원하는 최대 token 수
+        padding='max_length',
+        truncation=True,
         return_attention_mask=True,
         return_tensors="pt",
     )
@@ -155,7 +165,7 @@ def splitData(tokenId: torch.Tensor, attentionMask: torch.Tensor, label: torch.T
 
     trainSet = TensorDataset(
         tokenId[trainIdx], attentionMask[trainIdx], label[trainIdx]
-    )
+    ) # 주어진 token들 중 training set과 validation set에 해당하는 인덱스 값들을 각각 구한다.
     valSet = TensorDataset(tokenId[valIdx], attentionMask[valIdx], label[valIdx])
 
     trainDataLoader = DataLoader(
@@ -176,7 +186,7 @@ def train(trainDataLoader: DataLoader, valDataLoader: DataLoader):
         output_hidden_states=False,
     )
 
-    optimizer = torch.optim.AdamW(model.parameters(), lr=2e-5, eps=1e-8)
+    optimizer = AdamW(model.parameters(), lr=2e-5, eps=1e-8)
     model.cuda()
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
