@@ -189,7 +189,11 @@ def train(trainDataLoader: DataLoader, valDataLoader: DataLoader):
     optimizer = AdamW(model.parameters(), lr=2e-5, eps=1e-8)
     model.cuda()
 
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    try:
+        device = torch.device("cuda")
+    except Exception as err:
+        print("cuda is not available")
+        exit(1)
 
 
     # Recommended number of epochs: 2, 3, 4. See: https://arxiv.org/pdf/1810.04805.pdf
