@@ -239,7 +239,7 @@ def train(trainDataLoader: DataLoader, valDataLoader: DataLoader):
         val_recall = []
         val_specificity = []
 
-        for batch in validation_dataloader:
+        for batch in valDataLoader:
             batch = tuple(t.to(device) for t in batch)
             b_input_ids, b_input_mask, b_labels = batch
             with torch.no_grad():
